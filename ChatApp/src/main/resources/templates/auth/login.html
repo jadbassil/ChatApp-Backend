@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+    <head> 
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		
+		<!-- Website CSS style -->
+		<link rel="stylesheet" type="text/css" href="css/register-login.css">
+		<link rel="stylesheet" th:href="@{/webjars/bootstrap/3.3.7/css/bootstrap.min.css}">
+		 <script th:src="@{/webjars/jquery/3.3.1/jquery.min.js}"></script>
+		 <script th:src="@{/webjars/bootstrap/3.3.7/js/bootstrap.min.js}"></script>
+
+		<!-- Website Font style -->
+	    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.1/css/font-awesome.min.css">
+		
+		
+		<title>Login</title>
+	</head>
+<body  style="background-color:#efefef">
+
+	
+	<div class="container">
+			<div class="row main">
+				<div class="panel-heading">
+	               <div class="panel-title text-center">
+	               		<h1 class="title">Login Here</h1>
+	               		<hr />
+	               	</div>
+	            </div> 
+				<div class="main-login main-center">
+					<form class="form-horizontal" method="POST" th:action="login">
+						<div th:if="${param.error}">
+       						 <div class="alert alert-danger">
+              					Invalid username or password.
+        					</div>
+    					</div>
+   						 <div th:if="${param.logout}">
+       							<div class="alert alert-info">
+             						You have been logged out.
+       							</div>
+   						 </div>
+   						 <div th:if="${param.signup}">
+       							<div class="alert alert-info">
+             						You have been signed up successfully. Please verify your email.
+       							</div>
+   						 </div>
+   						  <div th:if="${param.verified}">
+       							<div th:if="${param.verified[0] == 'false'}" class="alert alert-danger">
+             						Please verify your email.
+       							</div>
+       							<div th:if="${param.verified[0] == 'true'}" class="alert alert-info">
+             						Email verified. You can now log in.
+       							</div>
+   						 </div>
+						<div class="form-group" >
+							<label for="username" class="cols-sm-2 ">Username</label>
+							<div class="cols-sm-10">
+								<div class="input-group">
+									<span class="input-group-addon"><i class="fa fa-users fa"></i></span>
+									<input type="text" class="form-control" name="username" id="username"  placeholder="Enter your Username"/>
+								</div>
+							
+							</div>
+						</div>
+
+						<div class="form-group">
+							<label for="password" class="cols-sm-2">Password</label>
+							<div class="cols-sm-10">
+								<div class="input-group">
+									<span class="input-group-addon"><i class="fa fa-lock fa-lg"></i></span>
+									<input type="password" class="form-control" name="password" id="password"  placeholder="Enter your Password"/>
+								</div>
+							</div>
+						</div>
+						
+						<div class="form-actions">
+							<input type="submit" class="btn btn-primary btn-lg btn-block login-button" value="Sign in"/>
+						</div>
+						<br>
+						<div class="cols-md-12">
+						<div>
+							<p>Don't have an account ! <a href="/signup">Sign Up Here </a> </p>
+						</div>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+
+</body>
+</html>
