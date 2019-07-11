@@ -4,23 +4,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import javax.servlet.http.HttpSession;
-import javax.validation.Valid;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCrypt;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.ModelAndView;
-
 import com.ChatApp.models.Chat;
+import com.ChatApp.models.DeletedChats;
 import com.ChatApp.models.User;
+import com.ChatApp.repositories.ChatRepository;
+import com.ChatApp.repositories.DeletedChatsRepository;
 import com.ChatApp.repositories.UserRepository;
 
 @RestController
@@ -29,6 +22,10 @@ public class UserController {
 	
 	@Autowired
 	private UserRepository userRepository;
+	@Autowired
+	private DeletedChatsRepository deletedChatsRepository;
+	@Autowired
+	private ChatRepository chatRepository;
 	
 	@GetMapping("/search")
 	public Map<String, Object> searchUsers(@RequestParam(value="search", required=false) String search, @RequestParam(name="userid") String userid) {
@@ -56,6 +53,17 @@ public class UserController {
 				for(Chat c : user.getChats()) {
 					if(c.getUsers().contains(u))
 						users.remove(u);
+					for(DeletedChats dc: deletedChatsRepository.findAll()) {
+						if(dc.getChatId() == c.getChatId() && dc.getUserId() == user.getId()) {
+							Chat c1 = chatRepository.findById(dc.getChatId()).orElse(null);
+							if(c1 != null) {
+								List<User> c1Users = c1.getUsers();
+								c1Users.remove(user);
+								if(!users.containsAll(c1Users))
+									users.addAll(c1Users);
+							}
+						}
+					}
 				}
 			}
 			if(users.isEmpty()) {
@@ -96,75 +104,6 @@ public class UserController {
 		}
 		return response;
 	}
-	
-	
-	@GetMapping("/profile")
-	public ModelAndView viewProfile(@RequestParam(value="id",required=false) int id, HttpSession session) {
-		ModelAndView mav = new ModelAndView("/profile");
-		//User user = (User) session.getAttribute("user");
-		 User userById=userRepository.findById(id).orElse(null);
-		 if(userById!=null)
-			 mav.addObject("user", userById);
-		return mav;
-	}
-	
-	@GetMapping("/editProfile")
-	public String editProfile(Model model) {
-		model.addAttribute("user", new User());
-		return "/editProfile";
-	}
-	
-	@PostMapping("/editProfile")
-	public String editSubmit(@Valid User user, BindingResult bindingResult, Model model,HttpSession session) {
-		//check for errors
-        if (bindingResult.hasErrors()) {
-           return "/editProfile";
-		}
-		
-		System.out.println("bindingResult :"+bindingResult.hasErrors());
-        if(userRepository.findByUsername(user.getUsername()) != null) {
-			return "redirect:/editProfile?error=false";
-        }
-		   
-		User user1 = (User) session.getAttribute("user");
-		if(user1==null) {
-			return "redirect:/error";
-		}
-		int id=user1.getId();
-		
-		User userToUpdate=userRepository.findById(id).orElse(null);
-		
-
-		userToUpdate.setEmail(user.getEmail());
-		userToUpdate.setUsername(user.getUsername());
-
-		String password = user.getPassword();
-		password = BCrypt.hashpw(password, BCrypt.gensalt());
-		userToUpdate.setPassword(password);
-		try {
-			userRepository.save(userToUpdate);
-		}catch (Exception e) {
-			return "redirect:/error";
-		}
-		return "redirect:/editProfile?edited=true";
-      }
-	
-	
-	/*
-	public ModelAndView editProfile(HttpSession session) {
-		ModelAndView mav = new ModelAndView("/editProfile");
-		User userToUpdate = (User) session.getAttribute("user");
-		User user=userRepository.findById(userToUpdate.getId()).orElse(null);
-		
-		userToUpdate.setFname(user.getFname());
-		userToUpdate.setLname(user.getLname());
-		userToUpdate.setEmail(user.getEmail());
-		userToUpdate.setPassword(user.getPassword());
-		
-		userRepository.save(userToUpdate);
-		
-		return mav;
-	}*/
 	
 }
 

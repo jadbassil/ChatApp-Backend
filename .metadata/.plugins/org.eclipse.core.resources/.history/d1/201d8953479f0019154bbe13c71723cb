@@ -1,0 +1,28 @@
+package com.ChatApp.models;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
+@Entity
+public class ChatParticipants {
+	@Id
+	Integer id;
+	
+	@ManyToOne
+	@JoinColumn(name="ChatId")
+	@JsonBackReference
+	Chat chat;
+	
+	@ManyToOne
+	@JoinColumn(name="UserId")
+	@JsonBackReference
+	User user;
+	
+	@Column
+	boolean Deleted;
+}

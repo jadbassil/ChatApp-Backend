@@ -1,0 +1,66 @@
+package com.ChatApp.models;
+
+import java.io.Serializable;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
+@SuppressWarnings("serial")
+@Entity
+public class ChatParticipants implements Serializable{
+
+	@Id
+	@ManyToOne
+	@JoinColumn(name="ChatId")
+	@JsonBackReference
+	private Chat chat;
+	
+	@Id
+	@ManyToOne
+	@JoinColumn(name="UserId")
+	@JsonBackReference
+	private User user;
+	
+	@Column(name="deleted")
+	private Integer deleted;
+
+	public ChatParticipants() {
+		super();
+	}
+
+	public ChatParticipants(User user) {
+		this.user = user;
+		this.deleted = 0;
+	}
+
+	public Chat getChat() {
+		return chat;
+	}
+
+	public void setChat(Chat chat) {
+		this.chat = chat;
+	}
+
+	public User getUser() {
+		return user;
+	}
+
+	public void setUser(User user) {
+		this.user = user;
+	}
+
+	public Integer isDeleted() {
+		return deleted;
+	}
+
+	public void setDeleted(boolean deleted) {
+		this.deleted = deleted;
+	}
+	
+	
+}

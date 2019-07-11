@@ -18,9 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
 import com.ChatApp.models.Chat;
+import com.ChatApp.models.DeletedChats;
 import com.ChatApp.models.Message;
 import com.ChatApp.models.User;
 import com.ChatApp.repositories.ChatRepository;
+import com.ChatApp.repositories.DeletedChatsRepository;
 import com.ChatApp.repositories.UserRepository;
 
 @RestController
@@ -31,6 +33,8 @@ public class messageController {
 	private ChatRepository chatRepository;
 	@Autowired
 	private UserRepository userRepository;
+	@Autowired
+	private DeletedChatsRepository deletedChatsRepository;
 	
 	@GetMapping("/getMessages")
 	public Map<String, Object> getMessages(@RequestParam String chatid){
@@ -86,6 +90,14 @@ public class messageController {
 		return response;
 	}
 	
+	public boolean checkDeleted(int chatId, int userId) {
+		for (DeletedChats dc: deletedChatsRepository.findAll()) {
+			if(dc != null && dc.getChatId() == chatId && dc.getUserId() == userId)
+				return true;
+		}
+		return false;
+	}
+	
     @SuppressWarnings("deprecation")
 	@MessageMapping("/{id}")
     @SendTo("/chat/{id}")
@@ -103,9 +115,15 @@ public class messageController {
         chat.getMessages().add(msg);
         chatRepository.save(chat);
         msg.setTimejs(msg.getTime().getHours()+":"+msg.getTime().getMinutes());
+        int user2 = -1;
         for(User u: chat.getUsers()){
         	if(u.getId() == msg.getSenderId())
         		msg.setSenderName(u.getUsername());
+        	else
+        		user2 = u.getId();
+        }
+        if(user2 != -1 && checkDeleted(chat.getId(), user2)) {
+        	deletedChatsRepository.delete(new DeletedChats(chat.getChatId(), user2));
         }
     	return "success";
     }

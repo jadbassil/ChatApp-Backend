@@ -1,0 +1,7 @@
+package com.ChatApp.repositories;
+
+import org.springframework.data.repository.CrudRepository;
+
+public interface DeletedChatsRepository extends CrudRepository<T, ID> {
+
+}

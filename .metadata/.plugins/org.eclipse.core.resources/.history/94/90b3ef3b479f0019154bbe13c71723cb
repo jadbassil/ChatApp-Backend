@@ -1,0 +1,17 @@
+package com.ChatApp.models;
+
+import java.io.Serializable;
+
+import javax.persistence.Column;
+import javax.persistence.Embeddable;
+
+@SuppressWarnings("serial")
+@Embeddable
+public class ChatUserCompositeKey implements Serializable {
+	@Column(name="ChatId")
+	private Integer ChatId;
+	
+	@Column(name="userId")
+	private Integer UserId;
+	
+}

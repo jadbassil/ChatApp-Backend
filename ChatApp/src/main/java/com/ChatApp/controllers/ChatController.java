@@ -14,11 +14,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
-
 import com.ChatApp.models.Chat;
+import com.ChatApp.models.ChatUserKey;
+import com.ChatApp.models.DeletedChats;
 import com.ChatApp.models.Message;
 import com.ChatApp.models.User;
 import com.ChatApp.repositories.ChatRepository;
+import com.ChatApp.repositories.DeletedChatsRepository;
 import com.ChatApp.repositories.UserRepository;
 
 
@@ -30,38 +32,15 @@ public class ChatController {
 	private UserRepository userRepository;
 	@Autowired
 	private ChatRepository chatRepository;
-	
-	@GetMapping("/")
-	public ModelAndView defaultChat(HttpSession session) {
-		User user = (User) session.getAttribute("user");
-		if(user == null) {
-			return new ModelAndView("auth/login");
+	@Autowired
+	private DeletedChatsRepository deletedChatsRepository;
+		
+	public boolean checkDeleted(int chatId, int userId) {
+		for (DeletedChats dc: deletedChatsRepository.findAll()) {
+			if(dc != null && dc.getChatId() == chatId && dc.getUserId() == userId)
+				return true;
 		}
-		User userDb = userRepository.findById(user.getId()).orElse(null);
-		session.setAttribute("user", userDb);
-		ModelAndView mav = new ModelAndView("/chat");
-		mav.addObject("user", user);
-		List<Chat> privateChats = new ArrayList<>();
-		List<Chat> groupChats = new ArrayList<>();
-		Map<String, Integer> privateChatsNames = new HashMap<String, Integer>();
-		for(Chat c : user.getChats()) {
-			if(c.getType() == 0) {
-				privateChats.add(c);
-				for(User u: c.getUsers()) {
-					if(!u.getUsername().equals(user.getUsername()))
-						privateChatsNames.put(u.getUsername(), c.getChatId());
-				}
-			}				
-			else if(c.getType() == 1)
-				groupChats.add(c);
-		}
-
-		System.out.println(privateChatsNames);
-		mav.addObject("privateChatsNames", privateChatsNames);
-		mav.addObject("privateChats", privateChats);
-		mav.addObject("groupChats", groupChats);
-		mav.setViewName("/chat");
-		return mav;
+		return false;
 	}
 	
 	@GetMapping({"/chat", "/chat/{id}"})
@@ -74,13 +53,13 @@ public class ChatController {
 			response.put("message", "invalid user");
 			return response;
 		}
-		ModelAndView mav = new ModelAndView("/chat");
-		mav.addObject("user", user);
+		//ModelAndView mav = new ModelAndView("/chat");
+//		mav.addObject("user", user);
 		List<Chat> privateChats = new ArrayList<>();
 		List<Chat> groupChats = new ArrayList<>();
 		ArrayList<Map<String, String>> privateChatsNames = new ArrayList<Map<String,String>>();
 		for(Chat c : user.getChats()) {
-			if(c.getType() == 0 && !privateChats.contains(c)) {
+			if(c.getType() == 0 && !privateChats.contains(c) && !checkDeleted(c.getId(), Integer.parseInt(userid))) {
 				privateChats.add(c);
 				for(User u: c.getUsers()) {
 					if(!u.getUsername().equals(user.getUsername())) {
@@ -130,7 +109,19 @@ public class ChatController {
 			response.put("message", "invalid user");
 			return response;
 		}
+		
 		for(Chat c: user1.getChats()) {
+			if(checkDeleted(c.getChatId(), user1.getId())) {
+				ChatUserKey ck = new ChatUserKey();
+				ck.setChatId(c.getChatId()); ck.setUserId(user1.getId());
+				deletedChatsRepository.deleteById(ck);
+				response.put("success", "true");
+				response.put("message", "new chat created");
+				response.put("name", user2.getUsername());
+				response.put("id", c.getChatId());
+				return response;
+			}
+				
 			if(c.getType() == 0 && c.getUsers().contains(user2)) {
 				response.put("success", "false");
 				response.put("message", "chat with this user already exists");
@@ -153,7 +144,7 @@ public class ChatController {
 	}
 	
 	@DeleteMapping("/delete")
-	public Map<String, Object> delete(@RequestParam String chatId){
+	public Map<String, Object> delete(@RequestParam String chatId, @RequestParam String userId){
 		Map<String, Object> response = new HashMap<String, Object>();
 		Chat chat = chatRepository.findById(Integer.parseInt(chatId)).orElse(null);
 		if(chat == null) {
@@ -161,161 +152,44 @@ public class ChatController {
 			response.put("message", "chat not found!");
 			return response;
 		}
-		chatRepository.delete(chat);
+		deletedChatsRepository.save(new DeletedChats(Integer.parseInt(chatId), Integer.parseInt(userId)));
 		response.put("success", "true");
 		response.put("message", "chat deleted");
 		response.put("chat", chat);
 		return response;
 	}
 	
-	/*@GetMapping("/newchat")
-	public ModelAndView newPrivateChat(@RequestParam String id, HttpSession session) {
-		int newId = Integer.parseInt(id);
-		ModelAndView mav = new ModelAndView("/chat");
-		User user1 = (User) session.getAttribute("user");
-		User user2 = userRepository.findById(newId).orElse(null);
-		if(user1 == null)
-			return new ModelAndView("auth/login");
-		for(Chat c: user1.getChats()) {
-			if(c.getType() == 0 && c.getUsers().contains(user2))
-					mav.setView(new RedirectView("/search?exists=true"));
-		}
-		Chat chat = new Chat();
-		chat.setAdmin(user1.getId());
-		chat.setType(0); 
-		chat.getUsers().add(user1); chat.getUsers().add(user2);
-		System.out.println(user1);
-		chatRepository.save(chat);
-		user1.getChats().add(chat); user2.getChats().add(chat);
-		session.setAttribute("user", user1);
-		System.out.println(user1);
-		List<Chat> privateChats = new ArrayList<>();
-		List<Chat> groupChats = new ArrayList<>();
-		Map<String, Integer> privateChatsNames = new HashMap<String, Integer>();
-		for(Chat c : user1.getChats()) {
-			if(c.getType() == 0) {
-				privateChats.add(c);
-				for(User u: c.getUsers()) {
-					if(!u.getUsername().equals(user1.getUsername()))
-						privateChatsNames.put(u.getUsername(), c.getChatId());
-				}
-			}				
-			else if(c.getType() == 1)
-				groupChats.add(c);
-		}
-		mav.addObject("chat", chat);
-		mav.addObject("privateChats", privateChats);
-		mav.addObject("groupChats", groupChats);
-		mav.addObject("privateChatsNames", privateChatsNames);
-		return mav;
-	}*/
-	
-	@PostMapping("/newGroupChat")
-	public ModelAndView newGroupChat(@RequestParam String groupName, HttpSession session) {
-		User user = (User) session.getAttribute("user");
-		if(user == null)
-			return new ModelAndView("auth/login");
-		Chat chat = new Chat();
-		chat.setAdmin(user.getId());
-		chat.setName(groupName);
-		chat.setType(1); //group
-		chat.getUsers().add(user);
-		chatRepository.save(chat);
-		user.getChats().add(chat);
-		session.setAttribute("user", user);
-		System.out.println("new chat id: " + chat.getId());
-		return new ModelAndView("redirect:/chat?id="+chat.getId());
-	}
-	/*@PostMapping("/newGroupChat")
-	public ModelAndView newGroupChat(@RequestParam String groupName, HttpSession session) {
-		ModelAndView mav = new ModelAndView();
-		User user = (User) session.getAttribute("user");
-		if(user == null)
-			return new ModelAndView("auth/login");
-		Chat chat = new Chat();
-		chat.setAdmin(user.getId());
-		chat.setName(groupName);
-		chat.setType(1); //group
-		chat.getUsers().add(user);
-		chatRepository.save(chat);
-		user.getChats().add(chat);
-		session.setAttribute("user", user);
-		List<Chat> privateChats = new ArrayList<>();
-		List<Chat> groupChats = new ArrayList<>();
-		Map<String, Integer> privateChatsNames = new HashMap<String, Integer>();
-		for(Chat c : user.getChats()) {
-			if(c.getType() == 0) {
-				privateChats.add(c);
-				for(User u: c.getUsers()) {
-					if(!u.getUsername().equals(user.getUsername()))
-						privateChatsNames.put(u.getUsername(), c.getChatId());
-				}
-			}				
-			else if(c.getType() == 1)
-				groupChats.add(c);
-		}
-		mav.addObject("privateChatsNames", privateChatsNames);
-		mav.addObject("privateChats", privateChats);
-		mav.addObject("groupChats", groupChats);
-		mav.setViewName("/chat");
-		return mav;	
-	}*/
-	@PostMapping("/addToGroup")
-	public ModelAndView addToGroup(@RequestParam String groupId, @RequestParam String userId, HttpSession session) {
-		System.out.println("userID: "+userId+" groupId: "+groupId);
-		User user = (User) session.getAttribute("user");
-		if(user == null)
-			return new ModelAndView("auth/login");
-		Chat chat = chatRepository.findById(Integer.valueOf(groupId)).orElse(null);
-		User user1 = userRepository.findById(Integer.valueOf(userId)).orElse(null);
-		if(chat.getUsers().contains(user1))
-			return new ModelAndView(new RedirectView("/search?existsInGroup=true"));
-		chat.getUsers().add(user1);
-		chatRepository.save(chat);
-		System.out.println("new chat id: " + chat.getId());
-		return new ModelAndView("redirect:/chat?id="+chat.getId());	
-	}
-	
-	/*@PostMapping("/addToGroup")
-	public ModelAndView addToGroup(@RequestParam String groupId, @RequestParam String userId, HttpSession session) {
-		ModelAndView mav = new ModelAndView();
-		User user = (User) session.getAttribute("user");
-		if(user == null)
-			return new ModelAndView("auth/login");
-		Chat chat = chatRepository.findById(Integer.valueOf(groupId)).orElse(null);
-		User user1 = userRepository.findById(Integer.valueOf(userId)).orElse(null);
-		if(chat.getUsers().contains(user1))
-			return new ModelAndView(new RedirectView("/search?existsInGroup=true"));
-		chat.getUsers().add(user1);
-		chatRepository.save(chat);
-		List<Chat> privateChats = new ArrayList<>();
-		List<Chat> groupChats = new ArrayList<>();
-		Map<String, Integer> privateChatsNames = new HashMap<String, Integer>();
-		for(Chat c : user.getChats()) {
-			if(c.getType() == 0) {
-				privateChats.add(c);
-				for(User u: c.getUsers()) {
-					if(!u.getUsername().equals(user.getUsername()))
-						privateChatsNames.put(u.getUsername(), c.getChatId());
-				}
-			}				
-			else if(c.getType() == 1)
-				groupChats.add(c);
-		}
-		Map<String, Message> messages = new HashMap<String, Message>();
-		for(Message m: chat.getMessages()) {
-			User sender = userRepository.findById(m.getSenderId()).orElse(null);
-			String name = sender.getFname() + " " + sender.getLname();
-			messages.put(name, m);
-		}
-		System.out.println(messages);
-		mav.addObject("messages", messages);
-		mav.addObject("privateChatsNames", privateChatsNames);
-		mav.addObject("privateChats", privateChats);
-		mav.addObject("groupChats", groupChats);
-		mav.setViewName("/chat");
-		return mav;	
-	}*/
-	
-	
+//	@PostMapping("/newGroupChat")
+//	public ModelAndView newGroupChat(@RequestParam String groupName, HttpSession session) {
+//		User user = (User) session.getAttribute("user");
+//		if(user == null)
+//			return new ModelAndView("auth/login");
+//		Chat chat = new Chat();
+//		chat.setAdmin(user.getId());
+//		chat.setName(groupName);
+//		chat.setType(1); //group
+//		chat.getUsers().add(user);
+//		chatRepository.save(chat);
+//		user.getChats().add(chat);
+//		session.setAttribute("user", user);
+//		System.out.println("new chat id: " + chat.getId());
+//		return new ModelAndView("redirect:/chat?id="+chat.getId());
+//	}
+//
+//	@PostMapping("/addToGroup")
+//	public ModelAndView addToGroup(@RequestParam String groupId, @RequestParam String userId, HttpSession session) {
+//		System.out.println("userID: "+userId+" groupId: "+groupId);
+//		User user = (User) session.getAttribute("user");
+//		if(user == null)
+//			return new ModelAndView("auth/login");
+//		Chat chat = chatRepository.findById(Integer.valueOf(groupId)).orElse(null);
+//		User user1 = userRepository.findById(Integer.valueOf(userId)).orElse(null);
+//		if(chat.getUsers().contains(user1))
+//			return new ModelAndView(new RedirectView("/search?existsInGroup=true"));
+//		chat.getUsers().add(user1);
+//		chatRepository.save(chat);
+//		System.out.println("new chat id: " + chat.getId());
+//		return new ModelAndView("redirect:/chat?id="+chat.getId());	
+//	}
+		
 }

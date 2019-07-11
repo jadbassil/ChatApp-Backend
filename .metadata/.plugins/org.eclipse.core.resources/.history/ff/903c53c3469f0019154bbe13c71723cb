@@ -1,0 +1,5 @@
+package com.ChatApp.models;
+
+public class ChatParticipants {
+
+}

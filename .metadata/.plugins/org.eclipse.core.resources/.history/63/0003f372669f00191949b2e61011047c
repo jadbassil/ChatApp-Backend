@@ -1,0 +1,9 @@
+package com.ChatApp.repositories;
+
+import org.springframework.data.repository.CrudRepository;
+
+import com.ChatApp.models.DeletedChats;
+
+public class DeletedChatRepository implements CrudRepository<DeletedChats, ChatUserKey>{
+
+}
